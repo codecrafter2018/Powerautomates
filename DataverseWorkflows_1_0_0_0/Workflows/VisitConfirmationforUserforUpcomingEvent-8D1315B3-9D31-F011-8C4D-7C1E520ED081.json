@@ -1,0 +1,280 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "zx_sharedcommondataserviceforapps_06019"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Apikeyforvapi (zx_Apikeyforvapi)": {
+          "defaultValue": "9943a88d-ce4d-4d25-8a9c-4ebc822b88d3",
+          "type": "String",
+          "metadata": {
+            "schemaName": "zx_Apikeyforvapi"
+          }
+        },
+        "PhoneNoId (zx_PhoneNoId)": {
+          "defaultValue": "a2ac19c7-7715-443d-b310-26680dd9bb5f",
+          "type": "String",
+          "metadata": {
+            "schemaName": "zx_PhoneNoId"
+          }
+        },
+        "VisitConfirmationAssistantId (zx_VisitConfirmationAssistantId)": {
+          "defaultValue": "132da216-9d1e-414b-a098-81916523df61",
+          "type": "String",
+          "metadata": {
+            "schemaName": "zx_VisitConfirmationAssistantId",
+            "description": "Store Assistant id used in visit confirmation automation"
+          }
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added,_modified_or_deleted": {
+          "metadata": {
+            "operationMetadataId": "b1f13f8b-4688-4d3b-b5ec-bd85b86bef79"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/entityname": "task",
+              "subscriptionRequest/scope": 4
+            },
+            "authentication": "@parameters('$authentication')"
+          },
+          "conditions": [
+            {
+              "expression": "@and(   equals(triggerOutputs()?['body/zx_notifyuser'], true),   not(equals(triggerOutputs()?['body/zx_usercallinitiated'], true)) )"
+            }
+          ]
+        }
+      },
+      "actions": {
+        "Condition": {
+          "actions": {
+            "List_rows": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "6a1363ea-7f08-418b-9369-bd613a8fa230"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "contacts",
+                  "fetchXml": "<fetch >\n<entity name=\"contact\">\n<attribute name=\"entityimage_url\"/>\n<attribute name=\"statecode\"/>\n<attribute name=\"fullname\"/>\n<order attribute=\"fullname\" descending=\"false\"/>\n<attribute name=\"parentcustomerid\"/>\n<attribute name=\"telephone1\"/>\n<attribute name=\"emailaddress1\"/>\n<attribute name=\"contactid\"/>\n<filter type=\"and\">\n<condition attribute=\"statecode\" operator=\"eq\" value=\"0\"/>\n<condition attribute=\"contactid\" operator=\"eq\" value=\"{@{triggerOutputs()?['body/_zx_contact_value']}}\"/>\n</filter>\n</entity>\n</fetch>",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Compose": {
+              "runAfter": {
+                "List_rows": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "34a361ab-7bb8-498e-a76c-e177d1dd3d59"
+              },
+              "type": "Compose",
+              "inputs": {
+                "assistantId": "@{parameters('VisitConfirmationAssistantId (zx_VisitConfirmationAssistantId)')}",
+                "assistantOverrides": {
+                  "firstMessage": "Hello, this is Maya calling on behalf of Mophaven Clean. I hope you're having a great day! I'm reaching out regarding your upcoming cleaning appointment @{triggerOutputs()?['body/description']}. I wanted to confirm if this time still works well for you, or if you'd prefer to reschedule?\n\nWould you like to keep your current appointment, or would you need to make any changes?",
+                  "variableValues": {
+                    "visitid": "@{triggerOutputs()?['body/activityid']}",
+                    "requestDetail": "@{triggerOutputs()?['body/description']}"
+                  }
+                },
+                "phoneNumberId": "@{parameters('PhoneNoId (zx_PhoneNoId)')}",
+                "customer": {
+                  "number": "+91@{first(outputs('List_rows')?['body/value'])?['telephone1']}",
+                  "name": "@{first(outputs('List_rows')?['body/value'])?['fullname']}"
+                }
+              }
+            },
+            "HTTP": {
+              "runAfter": {
+                "Compose": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "bea30b2f-62b8-4f06-b5cf-a595668b4f31"
+              },
+              "type": "Http",
+              "inputs": {
+                "method": "POST",
+                "uri": "https://api.vapi.ai/call",
+                "headers": {
+                  "Authorization": "Bearer @{parameters('Apikeyforvapi (zx_Apikeyforvapi)')}",
+                  "Content-Type": "application/json"
+                },
+                "body": "@outputs('Compose')"
+              }
+            },
+            "Update_a_row": {
+              "runAfter": {
+                "HTTP": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "332de39f-726c-4bf5-8a52-52b18ce526c3"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateOnlyRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "tasks",
+                  "recordId": "@triggerOutputs()?['body/activityid']",
+                  "item/zx_usercallinitiated": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {},
+          "else": {
+            "actions": {
+              "Get_a_row_by_ID": {
+                "runAfter": {},
+                "metadata": {
+                  "operationMetadataId": "d1d062ab-7628-41f8-9478-53d02a5dfbe2"
+                },
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_commondataserviceforapps",
+                    "operationId": "GetItem",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                  },
+                  "parameters": {
+                    "entityName": "zx_leads",
+                    "recordId": "@triggerOutputs()?['body/_zx_lead_value']"
+                  },
+                  "authentication": "@parameters('$authentication')"
+                }
+              },
+              "Compose_2": {
+                "runAfter": {
+                  "Get_a_row_by_ID": [
+                    "Succeeded"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "34a361ab-7bb8-498e-a76c-e177d1dd3d59"
+                },
+                "type": "Compose",
+                "inputs": {
+                  "assistantId": "@{parameters('VisitConfirmationAssistantId (zx_VisitConfirmationAssistantId)')}",
+                  "assistantOverrides": {
+                    "firstMessage": "Hello, this is Sophie calling on behalf of Mophaven Clean. I hope you're having a great day! I'm reaching out regarding your upcoming cleaning appointment: @{triggerOutputs()?['body/description']}. I wanted to confirm if this time still works well for you, or if you'd prefer to reschedule.\n\nWould you like to keep your current appointment, or would you need to make any changes?",
+                    "variableValues": {
+                      "visitid": "@{triggerOutputs()?['body/zx_visitid']}",
+                      "requestDetail": "@{triggerOutputs()?['body/description']}"
+                    }
+                  },
+                  "phoneNumberId": "@{parameters('PhoneNoId (zx_PhoneNoId)')}",
+                  "customer": {
+                    "number": "+91@{outputs('Get_a_row_by_ID')?['body/zx_phoneno']}",
+                    "name": "@{outputs('Get_a_row_by_ID')?['body/zx_customername']}"
+                  }
+                }
+              },
+              "HTTP_2": {
+                "runAfter": {
+                  "Compose_2": [
+                    "Succeeded"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "bea30b2f-62b8-4f06-b5cf-a595668b4f31"
+                },
+                "type": "Http",
+                "inputs": {
+                  "method": "POST",
+                  "uri": "https://api.vapi.ai/call",
+                  "headers": {
+                    "Authorization": "Bearer @{parameters('Apikeyforvapi (zx_Apikeyforvapi)')}",
+                    "Content-Type": "application/json"
+                  },
+                  "body": "@outputs('Compose_2')"
+                }
+              },
+              "Update_a_row_2": {
+                "runAfter": {
+                  "HTTP_2": [
+                    "Succeeded"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "b83eb786-8f35-4743-9df5-20c39ad98cf9"
+                },
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_commondataserviceforapps",
+                    "operationId": "UpdateOnlyRecord",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                  },
+                  "parameters": {
+                    "entityName": "tasks",
+                    "recordId": "@triggerOutputs()?['body/activityid']",
+                    "item/zx_usercallinitiated": true
+                  },
+                  "authentication": "@parameters('$authentication')"
+                }
+              }
+            }
+          },
+          "expression": {
+            "equals": [
+              "@not(empty(triggerOutputs()?['body/_zx_contact_value']))",
+              true
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c77e861c-f27a-466e-a3ed-e38519db745c"
+          },
+          "type": "If"
+        }
+      },
+      "outputs": {}
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

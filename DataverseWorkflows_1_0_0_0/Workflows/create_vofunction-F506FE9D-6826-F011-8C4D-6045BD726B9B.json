@@ -1,0 +1,406 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "zx_sharedcommondataserviceforapps_16daa"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "63c8475e-fd3d-4df2-99ab-8aed9cbf43e3"
+          },
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "triggerAuthenticationType": "All"
+          }
+        }
+      },
+      "actions": {
+        "Compose": {
+          "runAfter": {
+            "Compose_5": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "098e2b6a-36ca-4239-9de2-fe5c69bdd9be"
+          },
+          "type": "Compose",
+          "inputs": "@triggerBody()"
+        },
+        "List_rows": {
+          "runAfter": {
+            "Compose": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "0dd42184-c1e8-4310-82a2-28cdec4da596"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "entityName": "contacts",
+              "fetchXml": "<fetch version=\"1.0\" output-format=\"xml-platform\" mapping=\"logical\" savedqueryid=\"00000000-0000-0000-00aa-000010001003\" no-lock=\"false\" distinct=\"true\">\n<entity name=\"contact\">\n<attribute name=\"entityimage_url\"/>\n<attribute name=\"statecode\"/>\n<attribute name=\"fullname\"/>\n<order attribute=\"fullname\" descending=\"false\"/>\n<attribute name=\"parentcustomerid\"/>\n<attribute name=\"telephone1\"/>\n<attribute name=\"emailaddress1\"/>\n<attribute name=\"contactid\"/>\n<filter type=\"and\">\n<condition attribute=\"statecode\" operator=\"eq\" value=\"0\"/>\n<condition attribute=\"telephone1\" operator=\"eq\" value=\"@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Phoneno']}\"/>\n</filter>\n</entity>\n</fetch>"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Condition": {
+          "actions": {
+            "Compose_2": {
+              "runAfter": {
+                "Add_a_new_row": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "35a5a67e-0853-41f5-8308-302a360e3d69"
+              },
+              "type": "Compose",
+              "inputs": {
+                "results": [
+                  {
+                    "toolCallId": "@{triggerBody()?['message']?['toolCalls']?[0]?['id']}",
+                    "result": "Visit @{outputs('Add_a_new_row')?['body/zx_visitid']} created successfully"
+                  }
+                ]
+              }
+            },
+            "Response": {
+              "runAfter": {
+                "Compose_2": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "a49972b2-4176-4cf2-a2e5-c5b2834747f8"
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200,
+                "body": "@outputs('Compose_2')"
+              }
+            },
+            "Add_a_new_row": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "031f9edf-e4b8-48aa-93b8-013b8c1166f4"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "tasks",
+                  "item/subject": "@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Purpose']} @{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['cleaningvalue']}@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['DetailedRequest']}",
+                  "item/description": "@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['DetailedRequest']},@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['add_ons']}",
+                  "item/scheduledend": "@if(\n  or(\n    empty(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date']),\n    empty(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time'])\n  ),\n  null,\n  formatDateTime(\n    concat(\n      triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'],\n      ' ',\n      triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']\n    ),\n    'yyyy-MM-ddTHH:mm:ss'\n  )\n)",
+                  "item/prioritycode": "@if(\r\n    empty(string(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Priority'])),\r\n    1,\r\n    triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Priority']\r\n  )",
+                  "item/actualend": "@addHours(\n  formatDateTime(\n    concat(\n      triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'],\n      ' ',\n      triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']\n    ),\n    'yyyy-MM-ddTHH:mm:ss'\n  ),\n  2\n)\n",
+                  "item/actualstart": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                  "item/zx_alignmentdate": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                  "item/zx_Contact_Task@odata.bind": "@if(greater(length(outputs('List_rows')?['body/value']), 0),  concat('accounts(',outputs('List_rows')?['body/value'][0]?['contactid'],')') , null)",
+                  "item/zx_customer_name": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Name']",
+                  "item/zx_location": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['address']",
+                  "item/zx_pincode": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['pincode']",
+                  "item/zx_remindercalltime": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['followuptime']",
+                  "item/sortdate": "@formatDateTime(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time'])\n",
+                  "item/scheduledstart": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                  "item/zx_visitdate": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                  "item/zx_visitsource": "@if(equals(triggerBody()?['message']?['toolCalls']?[0]?['id'],'call_chat'),128780001,128780000)",
+                  "item/zx_visitstatus": 128780001,
+                  "item/zx_visittype": 128780000
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "List_rows": [
+              "Succeeded"
+            ]
+          },
+          "else": {
+            "actions": {
+              "Condition_2": {
+                "actions": {
+                  "Add_a_new_row_3": {
+                    "runAfter": {},
+                    "metadata": {
+                      "operationMetadataId": "031f9edf-e4b8-48aa-93b8-013b8c1166f4"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_commondataserviceforapps",
+                        "operationId": "CreateRecord",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                      },
+                      "parameters": {
+                        "entityName": "tasks",
+                        "item/subject": "@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Purpose']}@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['cleaningvalue']}",
+                        "item/description": "@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['DetailedRequest']},@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['add_ons']}",
+                        "item/scheduledend": "@addMinutes(\n    addMinutes(\n        formatDateTime(\n            concat(\n                triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'],\n                ' ',\n                triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']\n            ),\n            'yyyy-MM-ddTHH:mm:ss'\n        ),\n        -330\n    ),\n    int(outputs('Compose_4'))\n)",
+                        "item/prioritycode": "@if(\r\n    empty(string(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Priority'])),\r\n    1,\r\n    triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Priority']\r\n  )",
+                        "item/actualend": "@addMinutes(\r\n  addMinutes(\r\n    formatDateTime(\r\n      concat(\r\n        triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'],\r\n        ' ',\r\n        triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']\r\n      ),\r\n      'yyyy-MM-ddTHH:mm:ss'\r\n    ),\r\n    -330\r\n  ),\r\n  int(outputs('Compose_4'))\r\n)",
+                        "item/actualstart": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                        "item/zx_alignmentdate": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                        "item/zx_customer_name": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Name']",
+                        "item/zx_Lead_Task@odata.bind": "zx_leads(@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['lead_id']\r\n})",
+                        "item/zx_location": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['address']",
+                        "item/zx_pincode": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['pincode']",
+                        "item/sortdate": "@formatDateTime(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time'])",
+                        "item/scheduledstart": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                        "item/zx_visitdate": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                        "item/zx_visitsource": "@if(equals(triggerBody()?['message']?['toolCalls']?[0]?['id'],'call_chat'),128780001,128780000)",
+                        "item/zx_visitstatus": 128780001,
+                        "item/zx_visittype": 128780000
+                      },
+                      "authentication": "@parameters('$authentication')"
+                    }
+                  }
+                },
+                "runAfter": {},
+                "else": {
+                  "actions": {
+                    "If_Lead_Already_exists_list_rows_": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "3a5bab75-efff-42af-b706-66e2ccc24273"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "zx_leads",
+                          "fetchXml": "<fetch version=\"1.0\" mapping=\"logical\" savedqueryid=\"1d96083a-d6ec-4bb7-9ab3-9502b474c7af\" no-lock=\"false\" distinct=\"true\">\n\t<entity name=\"zx_lead\">\n\t\t<attribute name=\"statecode\"/>\n\t\t<attribute name=\"zx_leadid\"/>\n\t\t<attribute name=\"zx_name\"/>\n\t\t<attribute name=\"zx_phoneno\"/>\n\t\t<attribute name=\"zx_detailedrequest\"/>\n\t\t<attribute name=\"zx_spacesize\"/>\n\t\t<attribute name=\"zx_location\"/>\n\t\t<attribute name=\"zx_nextfollowupdate\"/>\n\t\t<attribute name=\"zx_leadstatus\"/>\n\t\t<attribute name=\"zx_customername\"/>\n\t\t<attribute name=\"createdon\"/>\n\t\t<order attribute=\"createdon\" descending=\"true\"/>\n\t\t<filter type=\"and\">\n\t\t\t<condition attribute=\"statecode\" operator=\"eq\" value=\"0\"/>\n\t\t\t<condition attribute=\"zx_leadstatus\" operator=\"in\">\n\t\t\t\t<value>128780001</value>\n\t\t\t\t<value>128780000</value>\n\t\t\t</condition>\n\t\t\t<condition attribute=\"zx_phoneno\" operator=\"eq\" value=\"@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['address']}\"/>\n\t\t</filter>\n\t</entity>\n</fetch>",
+                          "$top": 1
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Condition_3": {
+                      "actions": {},
+                      "runAfter": {
+                        "If_Lead_Already_exists_list_rows_": [
+                          "Succeeded"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "Scope": {
+                            "actions": {
+                              "Create_Lead": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "42363977-e6c6-480f-b61d-8fcef77a0b3c"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "CreateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "zx_leads",
+                                    "item/zx_name": "@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Purpose']} @{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['DetailedRequest']}",
+                                    "item/zx_customername": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Name']",
+                                    "item/zx_detailedrequest": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['DetailedRequest']",
+                                    "item/zx_leadvisitflag": true,
+                                    "item/zx_location": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['address']",
+                                    "item/zx_phoneno": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Phoneno']",
+                                    "item/zx_remindercalltime": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['followuptime']",
+                                    "item/zx_source": "@if(equals(triggerBody()?['message']?['toolCalls']?[0]?['id'],'call_chat'),128780001,128780000)",
+                                    "item/zx_spacesize": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Size']",
+                                    "item/zx_status": 128780000,
+                                    "item/statuscode": 1
+                                  },
+                                  "authentication": "@parameters('$authentication')"
+                                }
+                              },
+                              "Add_a_new_row_2": {
+                                "runAfter": {
+                                  "Create_Lead": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "031f9edf-e4b8-48aa-93b8-013b8c1166f4"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "CreateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "tasks",
+                                    "item/subject": "@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Purpose']} @{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['cleaningvalue']}@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['DetailedRequest']}",
+                                    "item/description": "@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['DetailedRequest']},@{triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['add_ons']}",
+                                    "item/scheduledend": "@if(\n  or(\n    empty(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date']),\n    empty(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time'])\n  ),\n  null,\n  formatDateTime(\n    concat(\n      triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'],\n      ' ',\n      triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']\n    ),\n    'yyyy-MM-ddTHH:mm:ss'\n  )\n)",
+                                    "item/prioritycode": "@if(\r\n    empty(string(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Priority'])),\r\n    1,\r\n    triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Priority']\r\n  )",
+                                    "item/actualend": "@addHours(\n  formatDateTime(\n    concat(\n      triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'],\n      ' ',\n      triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']\n    ),\n    'yyyy-MM-ddTHH:mm:ss'\n  ),\n  2\n)\n",
+                                    "item/actualstart": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                                    "item/zx_alignmentdate": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                                    "item/zx_customer_name": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Name']",
+                                    "item/zx_Lead_Task@odata.bind": "zx_leads(@{outputs('Create_Lead')?['body/zx_leadid']})",
+                                    "item/zx_location": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['address']",
+                                    "item/zx_pincode": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['pincode']",
+                                    "item/zx_remindercalltime": "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['followuptime']",
+                                    "item/sortdate": "@formatDateTime(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time'])",
+                                    "item/scheduledstart": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                                    "item/zx_visitdate": "@addMinutes(formatDateTime(concat(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Date'], ' ', triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Time']), 'yyyy-MM-ddTHH:mm:ss'),-330)",
+                                    "item/zx_visitsource": "@if(equals(triggerBody()?['message']?['toolCalls']?[0]?['id'],'call_chat'),128780001,128780000)",
+                                    "item/zx_visitstatus": 128780001,
+                                    "item/zx_visittype": 128780000
+                                  },
+                                  "authentication": "@parameters('$authentication')"
+                                }
+                              },
+                              "Compose_3": {
+                                "runAfter": {
+                                  "Add_a_new_row_2": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "2d564e99-7036-4c7e-8654-ee302323e889"
+                                },
+                                "type": "Compose",
+                                "inputs": {
+                                  "results": [
+                                    {
+                                      "toolCallId": "@{triggerBody()?['message']?['toolCalls']?[0]?['id']}",
+                                      "result": "Visit @{outputs('Add_a_new_row_2')?['body/zx_visitid']}  created successfully"
+                                    }
+                                  ]
+                                }
+                              },
+                              "Response_2": {
+                                "runAfter": {
+                                  "Compose_3": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "a49972b2-4176-4cf2-a2e5-c5b2834747f8"
+                                },
+                                "type": "Response",
+                                "kind": "Http",
+                                "inputs": {
+                                  "statusCode": 200,
+                                  "body": "@outputs('Compose_3')"
+                                }
+                              }
+                            },
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "fedde1db-559a-449d-a81b-10792ef09aa5"
+                            },
+                            "type": "Scope"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "greater": [
+                          "@length(outputs('If_Lead_Already_exists_list_rows_')?['body/value'])",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "4e471650-485a-4d0e-a32d-4bde2bde1b17"
+                      },
+                      "type": "If"
+                    }
+                  }
+                },
+                "expression": {
+                  "not": {
+                    "equals": [
+                      "@triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['lead_id']\r\n",
+                      "@null"
+                    ]
+                  }
+                },
+                "metadata": {
+                  "operationMetadataId": "45e5e450-77f6-487c-b89a-e4281bc554a2"
+                },
+                "type": "If"
+              }
+            }
+          },
+          "expression": {
+            "greater": [
+              "@length(outputs('List_rows')?['body/value'])",
+              0
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5100d993-8286-4fd0-b4d3-3166512cb919"
+          },
+          "type": "If"
+        },
+        "Compose_4": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "bfa2e233-3b30-4c83-afc5-4560ba90e9bb"
+          },
+          "type": "Compose",
+          "inputs": "@coalesce(string(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['CleaningDuration']), '0')"
+        },
+        "Compose_5": {
+          "runAfter": {
+            "Compose_4": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f7d3feed-29fc-44e4-b7c1-5d0cc8cbf16e"
+          },
+          "type": "Compose",
+          "inputs": "@if(\n    empty(string(triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Priority'])),\n    1,\n    triggerBody()?['message']?['toolCalls']?[0]?['function']?['arguments']?['Priority']\n  )"
+        }
+      },
+      "outputs": {}
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

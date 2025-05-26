@@ -1,0 +1,13 @@
+<environmentvariabledefinition schemaname="zx_VisitConfirmationAssistantId">
+  <description default="Store Assistant id used in visit confirmation automation">
+    <label description="Store Assistant id used in visit confirmation automation" languagecode="1033" />
+  </description>
+  <displayname default="VisitConfirmationAssistantId">
+    <label description="VisitConfirmationAssistantId" languagecode="1033" />
+  </displayname>
+  <introducedversion>1.0.0.6</introducedversion>
+  <iscustomizable>1</iscustomizable>
+  <isrequired>0</isrequired>
+  <secretstore>0</secretstore>
+  <type>100000000</type>
+</environmentvariabledefinition>
